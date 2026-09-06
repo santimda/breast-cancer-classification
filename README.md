@@ -82,7 +82,7 @@ The ratio construction handles zero means explicitly. In the dataset, the zero-c
 
 The classification threshold controls the trade-off between false negatives and false positives. Lowering it generally increases sensitivity by classifying more observations as malignant, but may reduce specificity. In this analysis, thresholds were selected separately for each model using training out-of-fold probabilities; the test set was not used to choose them. The trade-off can be understood from the ROC curves:
 
-<img src="figs/roc_curves.png" width="600" />
+<img src="figs/roc_curves.png" width="650" />
 
 The table below reports the final evaluation on the untouched 20% test split using thresholds selected from training out-of-fold probabilities. These are single-split estimates, not cross-validation averages. The threshold search maximizes sensitivity while requiring at least 90% specificity on the training folds. The training cross-validation results are used for model comparison, hyperparameter selection, and threshold selection; the test set is used only for final evaluation and diagnostic plots.
 
@@ -100,14 +100,14 @@ The positive class is malignant, so recall is sensitivity to malignant cases and
 
 ### Voting confusion-matrix comparison
 
-<img src="figs/confusion_matrix_voting_comparison.png" width="600" />
+<img src="figs/confusion_matrix_voting_comparison.png" width="650" />
 
 Lowering the Voting threshold to 0.220 improved sensitivity from 90.5% to 97.6%, while slightly reducing specificity from 100.0% to 97.2% on this test split.
 
 
 ### Permutation importance
 
-<img src="figs/feature_importance.png" width="600" />
+<img src="figs/feature_importance.png" width="650" />
 
 Permutation importance was calculated using a held-out split and ROC-AUC as the scoring metric. This provides a common definition of feature importance across models, including models such as SVM for which there is no directly comparable tree-style feature importance.
 
