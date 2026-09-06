@@ -33,12 +33,12 @@ The notebook follows this progression:
    - Feature distributions and pairplots
    - Feature correlation matrix
 
-2. **Feature engineering**
+2. **Feature engineering and representation selection**
    - Mean features
    - Error features
    - Worst features
    - Relative `worst / mean` features
-   - Comparison using stratified 5-fold cross-validation
+   - Comparison using stratified 5-fold cross-validation on training data
 
 3. **Model comparison**
    - Logistic Regression
@@ -48,15 +48,16 @@ The notebook follows this progression:
    - K-Nearest Neighbors
 
 4. **Hyperparameter tuning**
-   - Grid search using F1-score as the optimization metric
-   - Stratified 5-fold cross-validation
+   - Grid search using ROC-AUC as the optimization metric
+   - Stratified 5-fold cross-validation using only the training split
 
 5. **Model evaluation**
-   - Accuracy
-   - Recall / sensitivity
-   - Specificity
-   - ROC-AUC
-   - Confusion matrix
+   - Fit selected models on the complete training split
+   - Plot threshold-independent ROC curves on the test probabilities
+   - Select model-specific classification thresholds using training out-of-fold probabilities
+   - Evaluate once on the untouched 20% test split
+   - Accuracy, recall / sensitivity, specificity, F1-score, and ROC-AUC at the selected thresholds
+   - Confusion-matrix comparison at the default and optimized Voting thresholds
 
 6. **Model interpretation**
    - Permutation importance based on ROC-AUC
@@ -68,63 +69,50 @@ The notebook follows this progression:
 
 ## Results
 
-The final cross-validated comparison obtained the following results:
-
-| Model | Accuracy | Recall | Specificity | ROC-AUC |
-|---|---:|---:|---:|---:|
-| Logistic Regression | 97.7 ± 0.9% | 95.8 ± 3.7% | 98.9 ± 1.6% | 99.4 ± 0.7% |
-| SVM | **98.1 ± 1.2%** | 94.8 ± 3.1% | **100.0 ± 0.0%** | **99.6 ± 0.5%** |
-| Random Forest | 96.3 ± 1.5% | 95.3 ± 3.4% | 96.9 ± 2.0% | 99.3 ± 0.6% |
-| Gradient Boosting | 97.7 ± 1.6% | 95.8 ± 3.4% | 98.9 ± 2.2% | 99.5 ± 0.7% |
-| K-Nearest Neighbors | 96.1 ± 1.8% | 90.6 ± 4.2% | 99.4 ± 0.7% | 97.2 ± 2.0% |
-| Voting | 98.1 ± 0.9% | 95.3 ± 3.0% | 99.7 ± 0.6% | 99.5 ± 0.5% |
-| Stacking | **98.2 ± 1.2%** | **96.3 ± 3.2%** | 99.4 ± 0.7% | 99.5 ± 0.5% |
-
-The differences between the strongest models are small. In particular, the ensemble methods do not produce a dramatic improvement over the individual classifiers. Stacking gives the highest mean accuracy and recall in this experiment, while the SVM gives the highest ROC-AUC and specificity.
-
-These results should be interpreted as cross-validated model-selection results rather than as an independent estimate of deployment performance.
-
-## Feature engineering
+### Feature engineering
 
 A bounded feature-engineering experiment compared several representations.
 
 The main finding was that the absolute error measurements added little predictive value in the Random Forest experiment, whereas the `worst / mean` ratios provided useful additional information.
 
-The final representation therefore contains:
-
-```text
-mean radius
-mean texture
-...
-mean fractal dimension
-
-radius worst/mean
-texture worst/mean
-...
-fractal dimension worst/mean
-```
-
 The ratio construction handles zero means explicitly. In the dataset, the zero-concavity cases also have zero worst concavity, so their ratio is set to zero.
 
-## Interpretation
+
+### Threshold interpretation
+
+The classification threshold controls the trade-off between false negatives and false positives. Lowering it generally increases sensitivity by classifying more observations as malignant, but may reduce specificity. In this analysis, thresholds were selected separately for each model using training out-of-fold probabilities; the test set was not used to choose them. The trade-off can be understood from the ROC curves:
+
+<img src="figs/roc_curves.png" width="600" />
+
+The table below reports the final evaluation on the untouched 20% test split using thresholds selected from training out-of-fold probabilities. These are single-split estimates, not cross-validation averages. The threshold search maximizes sensitivity while requiring at least 90% specificity on the training folds. The training cross-validation results are used for model comparison, hyperparameter selection, and threshold selection; the test set is used only for final evaluation and diagnostic plots.
+
+| Model | Threshold | Accuracy | Recall | Specificity | F1 | ROC-AUC |
+|---|---:|---:|---:|---:|---:|---:|
+| Logistic Regression | 0.135 | 95.6% | 100.0% | 93.1% | 94.4% | 99.8% |
+| SVM | 0.145 | 93.9% | 100.0% | 90.3% | 92.3% | 99.5% |
+| Random Forest | 0.260 | 95.6% | 95.2% | 95.8% | 94.1% | 99.3% |
+| Gradient Boosting | 0.120 | 95.6% | 95.2% | 95.8% | 94.1% | 99.4% |
+| K-Nearest Neighbors | 0.180 | 97.4% | 97.6% | 97.2% | 96.5% | 99.8% |
+| **Voting** | 0.220 | 97.4% | 97.6% | 97.2% | 96.5% | **99.9%** |
+| **Stacking** | 0.095 | 97.4% | 100.0% | 95.8% | 96.6% | **99.9%** |
+
+The positive class is malignant, so recall is sensitivity to malignant cases and specificity measures the correct identification of benign cases. ROC-AUC is threshold-independent; accuracy, recall, specificity, F1-score, and the confusion matrix depend on the selected operating threshold. These differences should not be overinterpreted because the dataset is small and the test set contains only 114 observations.
+
+### Voting confusion-matrix comparison
+
+<img src="figs/confusion_matrix_voting_comparison.png" width="600" />
+
+Lowering the Voting threshold to 0.220 improved sensitivity from 90.5% to 97.6%, while slightly reducing specificity from 100.0% to 97.2% on this test split.
+
+
+### Permutation importance
+
+<img src="figs/feature_importance.png" width="600" />
 
 Permutation importance was calculated using a held-out split and ROC-AUC as the scoring metric. This provides a common definition of feature importance across models, including models such as SVM for which there is no directly comparable tree-style feature importance.
 
 Because several measurements are strongly correlated, individual permutation importances should not be interpreted as completely independent measures of biological relevance. The analysis is primarily intended to understand how the fitted models use the available feature representation.
 
-## Figures
-
-Suggested repository figures:
-
-### Confusion matrix
-
-![Confusion matrix](figs/confusion_matrix.png)
-
-### Permutation importance
-
-![Permutation importance](figs/feature_importance.png)
-
-For the final repository version, it would also be useful to add a compact model-comparison figure showing the main metrics side by side.
 
 ## Project structure
 
@@ -132,8 +120,9 @@ For the final repository version, it would also be useful to add a compact model
 breast-cancer-classifier/
 ├── breast_cancer_classifier_comparison.ipynb
 ├── figs/
-│   ├── confusion_matrix.png
+│   ├── confusion_matrix_voting_comparison.png
 │   ├── feature_importance.png
+│   ├── roc_curves.png
 │   └── ...
 └── README.md
 ```
@@ -152,9 +141,9 @@ breast-cancer-classifier/
 
 This is an educational machine-learning project, not a clinical diagnostic system.
 
-The dataset is small, and the observations are not representative of a modern clinical deployment population. In addition, model selection and subsequent cross-validation in the current notebook use the same dataset, so the reported cross-validated values should not be treated as a completely unbiased final generalization estimate.
+The dataset is small, and the observations are not representative of a modern clinical deployment population. The final test estimate is based on one stratified holdout split, so it is itself uncertain. The feature representation, hyperparameters, and thresholds are selected using training data only, but nested cross-validation would be needed for a less optimistic estimate of the complete model-selection procedure.
 
-A stronger final evaluation would reserve an untouched test set **before** feature selection and hyperparameter tuning, or use nested cross-validation.
+A clinical deployment would also require external validation, calibration analysis, threshold selection based on clinical costs, and assessment of subgroup performance.
 
 ## Dataset
 
