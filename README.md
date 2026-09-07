@@ -4,6 +4,10 @@ A supervised machine-learning project using the **Wisconsin Diagnostic Breast Ca
 
 The project also explores a small amount of feature engineering and compares individual classifiers with soft voting and stacking ensembles.
 
+## Deployment
+
+The final model is packaged as a reproducible application rather than remaining notebook-only. A shared feature pipeline keeps training and inference transformations identical, while a separately calibrated decision threshold is loaded alongside the trained model. The prediction module is served through a FastAPI application with health and prediction endpoints, and the complete service can be built and run with Docker.
+
 ## Overview
 
 The dataset contains measurements derived from digitized images of breast-mass fine-needle aspirates. The original dataset provides 30 numerical features for each observation:
@@ -113,17 +117,45 @@ Permutation importance was calculated using a held-out split and ROC-AUC as the 
 
 Because several measurements are strongly correlated, individual permutation importances should not be interpreted as completely independent measures of biological relevance. The analysis is primarily intended to understand how the fitted models use the available feature representation.
 
+## Running the API
+
+The production-style API can be run locally with Docker:
+
+```bash
+docker build -t breast-cancer-classifier .
+docker run --rm -p 8000:8000 breast-cancer-classifier
+```
+
+If Docker reports a permission error, run both commands with `sudo`.
+
+The interactive API documentation is available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs). The health endpoint is available at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
+
+The `POST /predict` endpoint accepts all 30 raw measurements under a `measurements` object. The Swagger documentation includes a complete valid example. The response contains the malignant probability, calibrated threshold, and binary prediction.
+
 
 ## Project structure
 
 ```text
 breast-cancer-classifier/
 ├── breast_cancer_classifier_comparison.ipynb
+├── features.py
+├── train.py
+├── calibrate_threshold.py
+├── predict.py
+├── api/
+│   └── app.py
+├── tests/
+│   └── test_api.py
+├── model/
+│   ├── model.joblib
+│   └── threshold.json
 ├── figs/
 │   ├── confusion_matrix_voting_comparison.png
 │   ├── feature_importance.png
 │   ├── roc_curves.png
 │   └── ...
+├── Dockerfile
+├── requirements.txt
 └── README.md
 ```
 
@@ -136,6 +168,10 @@ breast-cancer-classifier/
 - Seaborn
 - scikit-learn
 - Jupyter
+- FastAPI
+- Uvicorn
+- Docker
+- pytest
 
 ## Notes and limitations
 
