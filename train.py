@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 from sklearn.datasets import load_breast_cancer
 from sklearn.ensemble import (
@@ -14,32 +13,13 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-
-
-QUANTITIES = [
-    "radius",
-    "texture",
-    "perimeter",
-    "area",
-    "smoothness",
-    "compactness",
-    "concavity",
-    "concave points",
-    "symmetry",
-    "fractal dimension",
-]
+from features import build_final_features
 
 
 def load_final_features():
     data = load_breast_cancer()
     measurements = pd.DataFrame(data.data, columns=data.feature_names)
-
-    features = measurements[[f"mean {quantity}" for quantity in QUANTITIES]].copy()
-    for quantity in QUANTITIES:
-        mean = measurements[f"mean {quantity}"]
-        worst = measurements[f"worst {quantity}"]
-        features[f"{quantity} worst/mean"] = np.where(mean == 0, 0, worst / mean)
-
+    features = build_final_features(measurements)
     target = pd.Series((data.target == 0).astype(int), name="target")
     return features, target
 
